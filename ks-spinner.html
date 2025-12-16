@@ -28,7 +28,7 @@
             content: '';
             position: fixed;
             top: 50%;
-            left: calc(50% - 14px);
+            left: calc(50% - 23px);
             transform: translate(-50%, -50%);
             width: 100%;
             height: 100%;
@@ -41,38 +41,21 @@
             pointer-events: none;
             z-index: 0;
             will-change: transform;
+            animation: ghostFloat 4s ease-in-out infinite;
         }
 
-        @keyframes subtleGlow {
+        @keyframes ghostFloat {
             0%, 100% {
-                opacity: 0.15;
+                transform: translate(-50%, -50%);
             }
             50% {
-                opacity: 0.2;
+                transform: translate(-50%, calc(-50% - 15px));
             }
         }
 
         body > * {
             position: relative;
             z-index: 1;
-        }
-
-        .logo {
-            max-width: 200px;
-            width: 45%;
-            height: auto;
-            margin: 10px 0;
-            filter: drop-shadow(0 4px 20px rgba(139, 92, 246, 0.4));
-            animation: logoFloat 3s ease-in-out infinite;
-        }
-
-        @keyframes logoFloat {
-            0%, 100% {
-                transform: translateY(0px);
-            }
-            50% {
-                transform: translateY(-10px);
-            }
         }
 
         h1 {
@@ -308,8 +291,8 @@
 
         .spinner-container {
             position: relative;
-            width: 400px;
-            height: 400px;
+            width: 500px;
+            height: 500px;
             margin: 20px 0;
         }
 
@@ -439,7 +422,6 @@
 </head>
 <body>
     <h1>KidShadoe Official Randomizer</h1>
-    <img src="kslogo.png" alt="KidShadoe Logo" class="logo">
     
     <div class="container">
         <div class="main-content">
@@ -455,7 +437,7 @@
             <div class="spinner-container">
                 <div class="spinner-arrow"></div>
                 <div class="spinner-wheel" id="spinnerWheel">
-                    <canvas id="wheelCanvas" width="384" height="384"></canvas>
+                    <canvas id="wheelCanvas" width="484" height="484"></canvas>
                 </div>
                 <div class="center-circle"></div>
             </div>
@@ -510,14 +492,28 @@
 
         function removeItem(index) {
             items.splice(index, 1);
+            resetWheel();
             updateUI();
         }
 
-        function removeWinner(index) {
-            items.splice(index, 1);
+        function removeWinner(winnerText) {
+            const index = items.indexOf(winnerText);
+            if (index > -1) {
+                items.splice(index, 1);
+            }
             const resultSection = document.getElementById('resultSection');
             resultSection.innerHTML = '<p class="empty-state">Item removed! Add more items or spin again.</p>';
+            resetWheel();
             updateUI();
+        }
+
+        function resetWheel() {
+            const wheel = document.getElementById('spinnerWheel');
+            wheel.style.transition = 'none';
+            wheel.style.transform = 'rotate(0deg)';
+            // Force reflow
+            wheel.offsetHeight;
+            wheel.style.transition = '';
         }
 
         function updateUI() {
@@ -636,15 +632,25 @@
             
             // Clear previous result
             resultSection.innerHTML = '<p class="empty-state">Spinning...</p>';
+            
+            // Reset wheel to 0 position before spinning
+            wheel.style.transition = 'none';
+            wheel.style.transform = 'rotate(0deg)';
+            // Force reflow
+            wheel.offsetHeight;
+            wheel.style.transition = '';
 
             // Calculate random spin
             const segmentAngle = 360 / items.length;
             const randomIndex = Math.floor(Math.random() * items.length);
             
             // Calculate the angle to land on the selected item
-            // We want the arrow at the top to point to the center of the segment
-            const baseRotation = 360 * 8; // 8 full rotations for longer spin
-            const targetAngle = 360 - (randomIndex * segmentAngle + segmentAngle / 2);
+            // Segments are drawn starting at -90° (top), so segment 0 is at the top
+            // We want the arrow at the top to point to the center of the selected segment
+            const minRotations = 8; // Minimum 8 full rotations
+            const baseRotation = 360 * minRotations;
+            // To point at segment N's center, rotate so that segment N's center is at the top (0°)
+            const targetAngle = -(randomIndex * segmentAngle + segmentAngle / 2);
             const totalRotation = baseRotation + targetAngle;
 
             wheel.style.transform = `rotate(${totalRotation}deg)`;
@@ -652,7 +658,6 @@
             // Show result after spin completes
             setTimeout(() => {
                 const winner = items[randomIndex];
-                const winnerIndex = items.indexOf(winner);
                 
                 // Add to history
                 addToHistory(winner);
@@ -661,7 +666,7 @@
                     <h2>The winner is:</h2>
                     <div class="result-text">${winner}</div>
                     <div class="controls" style="margin-top: 20px;">
-                        <button onclick="removeWinner(${winnerIndex})">Remove Item</button>
+                        <button onclick="removeWinner('${winner.replace(/'/g, "\\'")}')">Remove Item</button>
                         <button onclick="spinWheel()">Spin Again</button>
                     </div>
                 `;
